@@ -1,22 +1,28 @@
-import os
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torchvision import transforms
 from torchvision.utils import save_image
 from torch.utils.data import DataLoader
-from datasets import celebA
+from torchvision import transforms
+import torch.optim as optim
+import torch.nn as nn
+import torch
+import os
+
 from models import Generator, Discriminator, weights_init
+from datasets import celebA
 
 
 # 파라매터
 reuse = False
-num_epoch = 100
+num_epoch = 20
 batch_size = 1
-lr = 0.0002
+lr = 0.00005
 alpha = 0.5
 beta = 0.999
-lambda_photo = 100
+lambda_photo = 30
+
+# 저장공간생성
+if not os.path.exists('images'):
+    os.makedirs('images', exist_ok=True)
+
 
 # GPU 사용여부
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -28,7 +34,7 @@ transforms = transforms.Compose([
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
 
 ### celeba 데이터셋
-celeba = celebA(path='../../../myProject/GANs-pytorch/data/celeba/',
+celeba = celebA(path='../../myProject/GANs-pytorch/data/celeba/',
                 transforms=transforms)
 
 ### 데이터 로드
@@ -62,6 +68,7 @@ def main():
     loss_BCE = nn.BCELoss()
     loss_CE = nn.CrossEntropyLoss()
     loss_L1 = nn.L1Loss()
+    loss_MSE = nn.MSELoss()
 
     for epoch in range(num_epoch):
         for i, (img, cls) in enumerate(dataloader):
@@ -89,8 +96,16 @@ def main():
             # Generator
             # # # # #
             loss_G_fake = loss_BCE(D_fake, torch.ones_like(D_fake))
+            
+            ### CAN loss
             loss_G_cls_fake = -((1/celeba.classes)*torch.ones(1, celeba.classes).to(device) \
                                     * nn.LogSoftmax(dim=1)(D_fake_cls)).sum(dim=1).mean()
+#            ### MSELoss
+#            loss_G_cls_fake = loss_MSE(D_fake_cls, (1/celeba.classes)*torch.ones_like(D_fake_cls))
+#
+#            ### ppad loss
+#            loss_G_cls_fake = 15 - loss_CE(D_fake_cls, cls) 
+
             loss_photorealistic = loss_L1(img, fake)
 
             loss_G = loss_G_fake + loss_G_cls_fake + lambda_photo * loss_photorealistic
@@ -101,7 +116,7 @@ def main():
 
             # 진행상황 출력
             print("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % \
-                  (epoch, 100, i*1, len(celeba), loss_D.item(), loss_G.item()))
+                  (epoch, num_epoch, i*1, len(celeba), loss_D.item(), loss_G.item()))
 
             # 이미지 저장
             if i%20000 == 0:

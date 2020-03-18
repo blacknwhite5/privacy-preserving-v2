@@ -4,25 +4,28 @@ from PIL import Image
 from torch.utils.data import Dataset 
 
 class celebA(Dataset):
-    def __init__(self, data_path, mode='train', transform=None):
-        self.data_path = data_path
-        self.transform = transform
+    def __init__(self, path, mode='train', transforms=None):
+        self.path = path
+        self.transforms = transforms
         self.mode = mode
 
         # check images
-        self.images = glob.glob(os.path.join(self.data_path, 'img_align_celeba/**/*.jpg'), recursive=True)
+        self.images = glob.glob(os.path.join(self.path, 'img_align_celeba/**/*.jpg'), recursive=True)
         
         # check labels
         self.labels = {}
-        f = open(os.path.join(self.data_path, 'identity_CelebA.txt'), 'r')
+        f = open(os.path.join(self.path, 'identity_CelebA.txt'), 'r')
         for s in f:
             filename, identity = s.split()
-            self.labels[filename] = int(identity)
+            self.labels[filename] = int(identity)-1
         f.close()
+        
+        # num of classes
+        self.classes = len(set(self.labels.values()))
 
     def __getitem__(self, idx):
         img = Image.open(self.images[idx])
-        img = self.transform(img)
+        img = self.transforms(img)
         label = self.labels[self.images[idx].split('/')[-1]]
         return img, label
 
@@ -31,11 +34,5 @@ class celebA(Dataset):
 
 
 if __name__ == '__main__':
-    from torch.utils.data import DataLoader
-    from torchvision import transforms 
-    transform = transforms.Compose([transforms.ToTensor()])
-    celeba = celebA('../../../myProject/GANs-pytorch/data/celeba/', transform=transform)
-    dataloader = DataLoader(dataset=celeba, batch_size=1, shuffle=False)
+    data = celebA('../../../myProject/GANs-pytorch/data/celeba/')
 
-    for img, label in dataloader:
-        print(img.shape, label)

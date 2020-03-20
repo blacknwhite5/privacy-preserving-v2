@@ -7,7 +7,7 @@ import torch
 import os
 
 from models import Generator, Discriminator, weights_init
-from datasets import celebA
+from celeba_aligned import celebA 
 
 
 # 파라매터
@@ -17,11 +17,13 @@ batch_size = 1
 lr = 0.00005
 alpha = 0.5
 beta = 0.999
-lambda_photo = 30
+lambda_photo = 100
 
 # 저장공간생성
 if not os.path.exists('images'):
     os.makedirs('images', exist_ok=True)
+if not os.path.exists('pretrained'):
+    os.makedirs('pretrained', exist_ok=True)
 
 
 # GPU 사용여부
@@ -34,14 +36,13 @@ transforms = transforms.Compose([
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
 
 ### celeba 데이터셋
-celeba = celebA(path='../../myProject/GANs-pytorch/data/celeba/',
+celeba = celebA(path='../data/celebA_aligned/',
                 transforms=transforms)
 
 ### 데이터 로드
 dataloader = DataLoader(celeba,
                         batch_size=batch_size,
                         shuffle=True)
-
 
 def main():
     # 네트워크
@@ -71,14 +72,16 @@ def main():
     loss_MSE = nn.MSELoss()
 
     for epoch in range(num_epoch):
-        for i, (img, cls) in enumerate(dataloader):
+        for i, (img, masked_img, masked_part, cls, landm) in enumerate(dataloader):
             img = img.to(device)
+            masked_img = masked_img.to(device)
+            masked_part = masked_part.to(device)
             cls = cls.to(device)
 
             # # # # #
             # Discriminator
             # # # # #
-            fake = G(img)
+            fake = G(masked_img)
             D_fake_cls, D_fake = D(fake)
             D_real_cls, D_real = D(img)
 

@@ -53,7 +53,7 @@ class Generator(nn.Module):
                                        nn.Conv2d(64, 3, kernel_size=9, stride=1),
                                        nn.Tanh())
 
-    def forward(self, x):
+    def forward(self, x, pose):
         x = self.down_sample(x)
         x = self.resnet_blocks(x)
         out = self.up_sample(x)
@@ -106,7 +106,8 @@ class Discriminator(nn.Module):
                                         *block('linear', 1024, 512, norm=False),
                                         *block('linear', 512, self.num_classes, norm=False, activation='none'))
 
-        self.discriminator = nn.Sequential(*block('linear', 512*3*2, 1, norm=False, activation='sigmoid'))
+#        self.discriminator = nn.Sequential(*block('linear', 512*3*2, 1, norm=False, activation='sigmoid'))
+        self.discriminator = nn.Sequential(*block('linear', 512*3*2, 1, norm=False, activation='none'))
 
     def forward(self, x):
         out = self.feature(x)

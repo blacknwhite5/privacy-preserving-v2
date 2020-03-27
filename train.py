@@ -147,12 +147,10 @@ def main():
             print(f"[Epoch {epoch}/{opts.num_epoch}     Batch {i*opts.batch_size}/{len(celeba)}]")
             print(f"D loss: {loss_D:.6f}")
             print(f"G loss: {loss_G:.6f}")
-            print(f"            |    fake    |    real    ")
+            print(f"            |    real    |    fake    ")
             print(f"--------------------------------------")
-            print(f"Min prob    | {softmax_real_cls.min(1)[0].mean():.6f}   |   {softmax_fake_cls.min(1)[0].mean():.6f}",
-                  f" -> 0.000092")
-            print(f"Max prob    | {softmax_real_cls.max(1)[0].mean():.6f}   |   {softmax_fake_cls.max(1)[0].mean():.6f}",
-                  f" -> 0.0  1.0")
+            print(f"Min prob    | {softmax_real_cls.min(1)[0].mean():.6f}   |   {softmax_fake_cls.min(1)[0].mean():.6f}")
+            print(f"Max prob    | {softmax_real_cls.max(1)[0].mean():.6f}   |   {softmax_fake_cls.max(1)[0].mean():.6f}")
             print(f"Precision   | {correct_(cls, softmax_real_cls):.4f}     |   {correct_(cls, softmax_fake_cls):.4f}")
             print("="*55)
 

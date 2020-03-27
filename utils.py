@@ -54,5 +54,5 @@ def softmax_(fake_cls):
 
 def correct_(real_cls, predicted):
     argmax = torch.argmax(predicted, dim=1)
-    correct_ = torch.where(argmax==real_cls, torch.ones_like(argmax), torch.zeros_like(argmax))
+    correct_ = torch.where(argmax==real_cls, torch.ones_like(argmax), torch.zeros_like(argmax)).to(predicted.dtype)
     return torch.sum(correct_) / len(real_cls)

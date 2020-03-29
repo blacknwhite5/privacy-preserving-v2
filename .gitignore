@@ -109,4 +109,3 @@ dmypy.json
 ### DO NOT BE TRACKED
 pretrained/
 results/
-data/

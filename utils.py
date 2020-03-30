@@ -13,7 +13,8 @@ def to_restore_size(img, cropped, bbox):
     buff = torch.zeros_like(img)
     for i, box in enumerate(bbox):
         x1, y1, x2, y2 = box
-        img[i,:,y1:y2,x1:x2] = F.interpolate(cropped[i].unsqueeze(0), [y2-y1, x2-x1], mode='bilinear')[0]
+        img[i,:,y1:y2,x1:x2] = F.interpolate(cropped[i].unsqueeze(0), 
+                                             [y2-y1, x2-x1], mode='bilinear', align_corners=False)[0]
     return img
 
 
@@ -52,7 +53,7 @@ def to_apply_mask(img, bbox):
 def softmax_(fake_cls):
     return torch.nn.functional.softmax(fake_cls.detach(), dim=1)
 
-def correct_(real_cls, predicted):
+def accuracy_(real_cls, predicted):
     argmax = torch.argmax(predicted, dim=1)
     correct_ = torch.where(argmax==real_cls, torch.ones_like(argmax), torch.zeros_like(argmax)).to(predicted.dtype)
     return torch.sum(correct_) / len(real_cls)

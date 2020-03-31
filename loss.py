@@ -28,6 +28,9 @@ class LSGANLoss(GANLoss):
         super(LSGANLoss, self).__init__()
         self.criterion = torch.nn.MSELoss()
 
+    def __call__(self, real, pred):
+        return self.criterion(real, pred)
+
 
 class WGAN_GPLoss:
     def __init__(self, D, lambda_gp):
@@ -84,8 +87,8 @@ class CELoss:
     def __init__(self):
         self.celoss = torch.nn.CrossEntropyLoss()
 
-    def __call__(self, real_cls, fake_cls):
-        return self.celoss(real_cls, fake_cls)
+    def __call__(self, real_cls, pred_cls):
+        return self.celoss(real_cls, pred_cls)
 
 class PixelwiseLoss:
     def __init__(self, lambda_photo=100):

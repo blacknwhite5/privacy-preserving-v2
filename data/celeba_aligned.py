@@ -4,13 +4,15 @@ import torch
 from PIL import Image
 import os.path as osp
 import numpy as np
+from data.utils import bounding_box_data_augmentation
 
 class celebA(Dataset):
-    def __init__(self, path, mode='total', transforms=None, grayscale=False):
+    def __init__(self, path, mode='total', transforms=None, grayscale=False, norm_landm=False):
         self.path = path
         self.transforms = transforms
         self.mode = mode
         self.grayscale = grayscale
+        self.norm_landm = norm_landm
 
         self.imgfolder = 'img_align_celeba'
         self.cache = 'cache.txt'
@@ -42,6 +44,16 @@ class celebA(Dataset):
         imgname = self.imgnames[idx]
         cls, box, landm = self.data[imgname]
         img = Image.open(osp.join(self.path, self.imgfolder, imgname)).convert('RGB')
+        cls = np.array(cls)
+        box = np.array(box)
+        landm = np.array(landm)
+
+        # box shrink
+        box = bounding_box_data_augmentation(box, img.size, 2/100) 
+
+        # box shift
+        # TODO
+
         if self.grayscale:
             img = img.convert('L')
 
@@ -60,6 +72,12 @@ class celebA(Dataset):
             x_min = w - box[2]
             box[0] = max(x_min, 0)
             box[2] = min(x_max, w)
+
+        if self.norm_landm:
+            w, h = img.size
+            landm = landm.astype(float)
+            landm[::2] = landm[::2] / w
+            landm[1::2] = landm[1::2] / h
 
         img = self.transforms(img)
         cls = torch.tensor(cls)
@@ -156,12 +174,12 @@ if __name__ == '__main__':
                             transforms.ToTensor(),
                             transforms.Normalize([0.5], [0.5])])
     
-    celeba = celebA('/home/moohyun/Desktop/myProject/GANs-pytorch/data/celeba/', transforms=transform)
-    dataloader = DataLoader(celeba, batch_size=16, shuffle=True)
+    celeba = celebA('../../data/celebA_aligned/', transforms=transform, grayscale=True, norm_landm=True)
+    dataloader = DataLoader(celeba, batch_size=1, shuffle=True)
 
 
     for i, (img, cls, bbox, landm) in enumerate(dataloader):
-        print(img.shape, cls.shape, bbox.shape, landm.shape)
+        print(img.shape, cls.shape, bbox, landm)
         pass 
 
 

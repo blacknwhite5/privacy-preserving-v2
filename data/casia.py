@@ -32,6 +32,9 @@ class CASIA(Dataset):
         imgname = self.filenames[idx]
         cls, box, landm = self.data[imgname]
         img = Image.open(os.path.join(self.path, self.imgfolder, imgname)).convert('RGB')
+#        cls = np.array(cls)
+#        box = np.array(box)
+#        landm = np.array(landm)
 
         # resize (250 -> 128)
         # img, box, landm = self.resize(img, box, landm)
@@ -42,7 +45,7 @@ class CASIA(Dataset):
             w, h = img.size
             # flip landm
             x1, x2, x3, x4, x5 = landm[0::2]
-            landm[0] = w - x2 
+            landm[0] = w - x2
             landm[2] = w - x1
             landm[4] = w - x3
             landm[6] = w - x5
@@ -106,7 +109,7 @@ class CASIA(Dataset):
         return data
 
     def read_cache(self):
-        print("[*] Reading cahce...")
+        print("[*] Reading cache...")
         data = {}
         with open(os.path.join(self.path, self.cache)) as f:
             for info in f.read().split('\n')[:-1]:
@@ -114,7 +117,6 @@ class CASIA(Dataset):
                 imgname = info[0]
                 cls = int(info[1])
                 box = list(map(int, info[2:6]))
-                box = self.xywh2xyxy(box)
                 landm = list(map(int, info[6:]))
                 data[imgname] = [cls, box, landm]
         print("[*] Reading done!")
@@ -148,9 +150,9 @@ if __name__ == '__main__':
     
     casia = CASIA('/home/moohyun/Desktop/egovid/PPAD/data/CASIA/', transforms=transform)
     dataloader = DataLoader(casia, batch_size=16, shuffle=True)
-
+       
     for i, (img, cls, bbox, landm) in enumerate(dataloader):
-#        print(i, img.shape, cls.shape, bbox.shape, landm.shape)
+        print(i, img.shape, cls.shape, bbox.shape, landm.shape)
         pass 
 
 #        # check pillow image

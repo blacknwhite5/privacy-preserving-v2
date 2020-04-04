@@ -28,8 +28,18 @@ class LSGANLoss(GANLoss):
         super(LSGANLoss, self).__init__()
         self.criterion = torch.nn.MSELoss()
 
-    def __call__(self, real, pred):
-        return self.criterion(real, pred)
+    def __call__(self, *args):
+        if len(args) == 2:
+            D_real, D_fake = args
+            term1 = self.criterion(D_real, torch.ones_like(D_real))
+            term2 = self.criterion(D_fake, torch.zeros_like(D_fake))
+            loss = term1 + term2
+        elif len(args) == 1:
+            D_fake = args[0]
+            loss = self.criterion(D_fake, torch.ones_like(D_fake))
+        else:
+            raise Exception(f'inputs must be 1 or 2, but got {len(args)}')
+        return loss 
 
 
 class WGAN_GPLoss:
@@ -38,29 +48,29 @@ class WGAN_GPLoss:
         self.lambda_gp = lambda_gp
 
     def __call__(self, *args):
-        if len(args) == 2:
-            real, fake = args
-            d_real = self.D(real)
-            d_fake = self.D(fake)
+        if len(args) == 3:
+            real, fake, face_info = args
+            d_real = self.D(real, face_info)
+            d_fake = self.D(fake, face_info)
             if isinstance(d_real, tuple):
                 d_real = d_real[1]
                 d_fake = d_fake[1]
-            gradient_penalty = self.gradient_penalty(real, fake)
+            gradient_penalty = self.gradient_penalty(real, fake, face_info)
             return -torch.mean(d_real) + torch.mean(d_fake) + self.lambda_gp * gradient_penalty
-        elif len(args) == 1:
-            fake = args[0]
-            d_fake = self.D(fake)
+        elif len(args) == 2:
+            fake, face_info = args
+            d_fake = self.D(fake, face_info)
             if isinstance(d_fake, tuple):
                 d_fake = d_fake[1]
             return -torch.mean(d_fake)
         else:
             raise Exception(f'inputs must be 1 or 2, but got {len(args)}')
 
-    def gradient_penalty(self, real_samples, fake_samples):
+    def gradient_penalty(self, real_samples, fake_samples, face_info):
         """Calculates the gradient penalty loss for WGAN GP"""
         eps = torch.rand((real_samples.size(0), 1, 1, 1)).to(real_samples.device)
         x_hat = (eps * real_samples.data + (1-eps) * fake_samples.data).requires_grad_(True)
-        d_hat = self.D(x_hat)
+        d_hat = self.D(x_hat, face_info)
         if isinstance(d_hat, tuple):
             d_hat = d_hat[1]
         ones = torch.ones((real_samples.shape[0], 1), requires_grad=False).to(real_samples.device)
@@ -75,20 +85,58 @@ class WGAN_GPLoss:
         return gradient_penalty
 
 
+#class CANLoss:
+#    def __init__(self, num_classes):
+#        self.num_classes = num_classes
+#
+#    def __call__(self, D_fake_cls):
+#        return -((1/self.num_classes)*torch.ones(1, self.num_classes).to(D_fake_cls.device) \
+#                * torch.nn.LogSoftmax(dim=1)(D_fake_cls)).sum(dim=1).mean()
+
 class CANLoss:
     def __init__(self, num_classes):
         self.num_classes = num_classes
-
-    def __call__(self, D_fake_cls):
-        return -((1/self.num_classes)*torch.ones(1, self.num_classes).to(D_fake_cls.device) \
-                * torch.nn.LogSoftmax(dim=1)(D_fake_cls)).sum(dim=1).mean()
-
-class CELoss:
-    def __init__(self):
         self.celoss = torch.nn.CrossEntropyLoss()
+        self.logsoftmax = torch.nn.LogSoftmax(dim=1)
+        self.softmax = torch.nn.Softmax(dim=1)
 
-    def __call__(self, real_cls, pred_cls):
-        return self.celoss(real_cls, pred_cls)
+    def __call__(self, *args):
+        if len(args) == 3:
+            D_real_cls, D_fake_cls, cls = args
+            term0 = self.celoss(D_real_cls, cls)
+            term1 = 0
+            term2 = torch.log(1-self.softmax(D_fake_cls))
+        elif len(args) == 1:
+            D_fake_cls = args[0]
+            term0 = 0
+            term1 = (1/self.num_classes) * self.logsoftmax(D_fake_cls)
+            term2 = (1-(1/self.num_classes)) * torch.log(1-self.softmax(D_fake_cls))
+        else:
+            raise Exception(f'inputs must be 1(real cls, fake cls, label) or 3, but got {len(args)}')
+        
+#        term1 = (1/self.num_classes) * self.logsoftmax(D_fake_cls)
+##        term2 = (1-(1/self.num_classes)) * self.logsoftmax(D_fake_cls)
+#        term2 = (1-(1/self.num_classes)) * torch.log(1-self.softmax(D_fake_cls))
+        loss =  term0 - (term1 + term2).sum(dim=1).mean()
+        return loss
+
+#class CANLoss:
+#    def __init__(self, num_classes):
+#        self.num_classes = num_classes
+#        self.celoss = torch.nn.CrossEntropyLoss()
+#        self.logsoftmax = torch.nn.LogSoftmax(dim=1)
+#
+#    def __call__(self, *args):
+#        if len(args) == 3:
+#            D_real_cls, D_fake_cls, cls = args
+#            loss = self.celoss(D_real_cls, cls)
+#        elif len(args) == 1:
+#            D_fake_cls = args[0]
+#            loss =  -((1/self.num_classes) * self.logsoftmax(D_fake_cls)).sum(dim=1).mean()
+#        else:
+#            raise Exception(f'inputs must be 1(real cls, fake cls, label) or 3, but got {len(args)}')
+#        return loss
+
 
 class PixelwiseLoss:
     def __init__(self, lambda_photo=100):
@@ -112,10 +160,10 @@ class PPADLoss:
 
 
 if __name__ == '__main__':
-    from models import Discriminator
-    D = Discriminator(num_classes=1)
-    a = torch.ones([16, 3, 218, 178])
-    b = torch.zeros([16, 3, 218, 178])
+    from models.v1 import PatchGAN 
+    D = PatchGAN(num_classes=1, last_activation='none')
+    a = torch.ones([16, 3, 128, 128])
+    b = torch.zeros([16, 3, 128, 128])
     criterion = WGAN_GPLoss(D, 10)
     print(criterion(a,b))
     print(criterion(b))
@@ -126,9 +174,13 @@ if __name__ == '__main__':
     crit3 = LSGANLoss()
     print(crit3(a,b))
 
-    crit4 = pixelwiseloss()
+    crit4 = PixelwiseLoss()
     print(crit4(a,b))
 
     num_cls = 10
     crit5 = CANLoss(num_cls)
-    print(crit5(torch.Tensor(num_cls, 10)))
+    print(crit5(torch.randn(6, num_cls)))
+
+#    crit6 = CANLoss2(num_cls)
+#    print(crit6(torch.randn(6, num_cls)))
+#    print(crit6(torch.randn(6, num_cls), torch.randn(6, num_cls), 3*torch.ones(6).to(torch.int64)))

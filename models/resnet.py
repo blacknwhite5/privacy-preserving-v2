@@ -103,9 +103,9 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, in_channel=3, num_classes=1000, zero_init_residual=False,
+    def __init__(self, block, layers, in_channel=4, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None):
+                 norm_layer=None, p=0.3):
         super(ResNet, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
@@ -138,18 +138,22 @@ class ResNet(nn.Module):
 
         self.classification = nn.Sequential(nn.Linear(512 * block.expansion, 512),
                                             nn.ReLU(inplace=True),
+                                            nn.Dropout(p),
                                             nn.Linear(512 * block.expansion, 512),
                                             nn.ReLU(inplace=True),
+                                            nn.Dropout(p),
                                             nn.Linear(512 * block.expansion, 512),
                                             nn.ReLU(inplace=True),
+                                            nn.Dropout(p),
                                             nn.Linear(512 * block.expansion, num_classes))
 
         self.discrimination = nn.Sequential(nn.Linear(512 * block.expansion, 512),
                                             nn.ReLU(inplace=True),
+                                            nn.Dropout(p),
                                             nn.Linear(512 * block.expansion, 512),
                                             nn.ReLU(inplace=True),
+                                            nn.Dropout(p),
                                             nn.Linear(512 * block.expansion, 1))
-
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -192,8 +196,9 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def _forward_impl(self, x):
+    def _forward_impl(self, x, face_info):
         # See note [TorchScript super()]
+        x = torch.cat([x, face_info], dim=1)
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -210,8 +215,8 @@ class ResNet(nn.Module):
         real_or_fake = self.discrimination(x)
         return cls, real_or_fake
 
-    def forward(self, x):
-        return self._forward_impl(x)
+    def forward(self, x, face_info):
+        return self._forward_impl(x, face_info)
 
 
 def _resnet(arch, block, layers, pretrained, progress, **kwargs):

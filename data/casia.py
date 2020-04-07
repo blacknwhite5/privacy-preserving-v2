@@ -32,15 +32,18 @@ class CASIA(Dataset):
         imgname = self.filenames[idx]
         cls, box, landm = self.data[imgname]
         img = Image.open(os.path.join(self.path, self.imgfolder, imgname)).convert('RGB')
-#        cls = np.array(cls)
-#        box = np.array(box)
-#        landm = np.array(landm)
+        cls = np.array(cls)
+        box = np.array(box)
+        landm = np.array(landm)
 
         # resize (250 -> 128)
         # img, box, landm = self.resize(img, box, landm)
 
         # stochastic flip 
         if torch.rand(1) > 0.5:
+            box = box.copy()
+            landm = landm.copy()
+
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
             w, h = img.size
             # flip landm
@@ -57,9 +60,9 @@ class CASIA(Dataset):
             box[2] = min(x_max, w)
         
         img = self.transforms(img)
-        cls = torch.tensor(cls)
-        box = torch.tensor(box)
-        landm = torch.tensor(landm)
+#        cls = torch.tensor(cls)
+#        box = torch.tensor(box)
+#        landm = torch.tensor(landm)
         return img, cls, box, landm
         
 

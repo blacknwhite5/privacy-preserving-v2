@@ -80,9 +80,9 @@ class celebA(Dataset):
             landm[1::2] = landm[1::2] / h
 
         img = self.transforms(img)
-        cls = torch.tensor(cls)
-        box = torch.tensor(box)
-        landm = torch.tensor(landm)
+#        cls = torch.tensor(cls)
+#        box = torch.tensor(box)
+#        landm = torch.tensor(landm)
         return img, cls, box, landm
 
     def __len__(self):

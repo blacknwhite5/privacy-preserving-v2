@@ -26,9 +26,9 @@ parser.add_argument('--dnet', type=str, default='resnet18')
 parser.add_argument('--gnet', type=str, default='resnet_9blocks')
 parser.add_argument('--num_epoch', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=16)
-parser.add_argument('--lr', type=int, default=0.0002)
-parser.add_argument('--b1', type=int, default=0.5)
-parser.add_argument('--b2', type=int, default=0.999)
+parser.add_argument('--lr', type=float, default=0.0002)
+parser.add_argument('--b1', type=float, default=0.5)
+parser.add_argument('--b2', type=float, default=0.999)
 parser.add_argument('--lambda_photo', type=int, default=100)
 parser.add_argument('--lambda_gp', type=int, default=10)
 parser.add_argument('--n_repeat', type=int, default=1)
@@ -68,9 +68,9 @@ transforms = transforms.Compose([
 
 ### celeba 데이터셋
 if opts.dataset == 'celeba':
-    face_data = celebA(path='/home/moohyun/Desktop/myProject/GANs-pytorch/data/celeba/', transforms=transforms)
+    face_data = celebA(path='../../myProject/GANs-pytorch/data/celeba/', transforms=transforms)
 elif opts.dataset == 'casia':
-    face_data = CASIA(path='/home/moohyun/Desktop/egovid/PPAD/data/CASIA/', transforms=transforms)
+    face_data = CASIA(path='../PPAD/data/CASIA/', transforms=transforms)
 
 ### 데이터 로드
 dataloader = DataLoader(face_data,
@@ -88,22 +88,31 @@ def main():
 
     # pretrained 모델 불러오기
     if os.path.isfile(opts.ckpt_d):
-        D.load_state_dict(torch.load(opts.ckpt_d)['D'])
+        load(D, opts.ckpt_d, 'D')
         print('[*]Discriminator model loaded')
     if os.path.isfile(opts.ckpt_g):
-        G.load_state_dict(torch.load(opts.ckpt_g)['G'])
+        load(G, opts.ckpt_g, 'G')
         print('[*]Generator model loaded')
-
-
-    # optimizer 정의
-    D_optim = optim.Adam(D.parameters(), lr=opts.lr, betas=(opts.b1, opts.b2))
-    G_optim = optim.Adam(G.parameters(), lr=opts.lr, betas=(opts.b1, opts.b2))
 
     # loss 정의
     wganloss = WGAN_GPLoss(D, opts.lambda_gp)
-    celoss = CELoss()
     canloss = CANLoss(face_data.classes)
     pixelwiseloss = PixelwiseLoss(opts.lambda_photo)
+    celoss = nn.CrossEntropyLoss()
+
+    # optimizer 정의
+    D_optim = optim.Adam(D.parameters(), lr=opts.lr, betas=(opts.b1, opts.b2))
+#    D_optim = optim.Adam([
+#                          {'params': D.classification.parameters(), 'lr': opts.lr*10}],
+#                            lr=opts.lr, betas=(opts.b1, opts.b2))
+    G_optim = optim.Adam(G.parameters(), lr=opts.lr, betas=(opts.b1, opts.b2))
+
+    # scheduler
+#    scheduler_D = optim.lr_scheduler.ExponentialLR(D_optim, gamma=0.99)
+#    scheduler_G = optim.lr_scheduler.ExponentialLR(G_optim, gamma=0.99)
+    scheduler_D = optim.lr_scheduler.StepLR(D_optim, step_size=6, gamma=0.1)
+    scheduler_G = optim.lr_scheduler.StepLR(G_optim, step_size=6, gamma=0.1)
+
 
     for epoch in range(opts.num_epoch):
         for i, (img, cls, bbox, landm) in enumerate(dataloader):
@@ -115,23 +124,41 @@ def main():
             # preprocess
             img_ = img.clone()
             masked = to_apply_mask(img_, bbox) 
+
+            # use expand bbox
             expanded_bbox = to_expand_bbox(bbox, landm, *img.shape[2:])
-            cropped_masked = to_crop_resize(masked, expanded_bbox).to(img_.device)
-            cropped_img = to_crop_resize(img, expanded_bbox).to(img.device)
+            cropped_masked, landm = to_crop_resize(masked, expanded_bbox, landm)
+            cropped_img, _ = to_crop_resize(img, expanded_bbox, landm)
+            cropped_masked = cropped_masked.to(img_.device)
+            cropped_img = cropped_img.to(img_.device)
+            onehot_landm = to_onehot(landm, *cropped_masked.shape[2:]).to(img_.device)
+
+#            # verify landmark
+#            npimg = (cropped_masked[0].cpu().detach().numpy() + 1) * 127.5
+#            npimg = npimg.transpose((1,2,0)).astype(np.uint8)
+#            npmark = landm.cpu().detach().numpy()
+#            npimg = cv2.umat(npimg)
+#            cv2.circle(npimg, (landm[0][0], landm[0][1]), 3, (0,0,255), 2)
+#            cv2.circle(npimg, (landm[0][2], landm[0][3]), 3, (0,0,255), 2)
+#            cv2.circle(npimg, (landm[0][4], landm[0][5]), 3, (0,0,255), 2)
+#            cv2.circle(npimg, (landm[0][6], landm[0][7]), 3, (0,0,255), 2)
+#            cv2.circle(npimg, (landm[0][8], landm[0][9]), 3, (0,0,255), 2)
+#            cv2.imwrite('test.jpg', npimg)
+#            print(npimg)
 
             if i % opts.n_repeat == 0:
                 # # # # #
                 # Discriminator
                 # # # # #
-                # TODO : define D_fake, D_real loss
-                fake = G(cropped_masked)
-                D_fake_cls, D_fake = D(fake)
-                D_real_cls, D_real = D(cropped_img)
+                fake = G(cropped_masked, onehot_landm)
+                D_fake_cls, D_fake = D(fake, onehot_landm)
+                D_real_cls, D_real = D(cropped_img, onehot_landm)
 
-                loss_D_wgan = wganloss(cropped_img, fake)
-                loss_D_cls_real = celoss(D_real_cls, cls)
-                loss_D_cls_fake = celoss(D_fake_cls, cls)
-                loss_D = loss_D_wgan + loss_D_cls_real + loss_D_cls_fake 
+                loss_D_rof = wganloss(cropped_img, fake, onehot_landm)
+                loss_D_cls = canloss(D_real_cls, D_fake_cls, cls)
+#                loss_D_cls = canloss(D_fake_cls) + celoss(D_real_cls, cls)
+#                loss_D_cls = celoss(D_real_cls, cls)
+                loss_D = loss_D_rof + loss_D_cls 
                 
                 D_optim.zero_grad()
                 loss_D.backward()
@@ -140,23 +167,22 @@ def main():
             # # # # #
             # Generator
             # # # # #
-            # TODO : define D_fake loss
-            fake = G(cropped_masked)
-            D_fake_cls, D_fake = D(fake)
+            fake = G(cropped_masked, onehot_landm)
+            D_fake_cls, D_fake = D(fake, onehot_landm)
             restore = to_restore_size(masked, fake, expanded_bbox)
 
-            loss_G_wgan = wganloss(fake)
-            loss_G_can = canloss(D_fake_cls)
+            loss_G_rof = wganloss(fake, onehot_landm)
+            loss_G_cls = canloss(D_fake_cls)
             loss_photorealistic = pixelwiseloss(img, restore)
-            loss_G = loss_G_wgan + loss_G_can + loss_photorealistic
+            loss_G = loss_G_rof + loss_G_cls + loss_photorealistic
             
             G_optim.zero_grad()
             loss_G.backward()
             G_optim.step()
 
             # 진행상황 출력
-            loss_D_cls = 0.5 * (loss_D_cls_real + loss_D_cls_fake).data
-            loss_G_cls = loss_G_can.data
+            loss_D_cls = loss_D_cls.data
+            loss_G_cls = loss_G_cls.data
             softmax_fake_cls = softmax_(D_fake_cls).data
             softmax_real_cls = softmax_(D_real_cls).data
             minprob_fake = softmax_fake_cls.min(1)[0].mean().data
@@ -168,10 +194,11 @@ def main():
             dfake = torch.mean(D_fake).data
             dreal = torch.mean(D_real).data
             print(f"[Epoch {epoch}/{opts.num_epoch}     Batch {i*opts.batch_size}/{len(face_data)}]")
+            print(f"[D lr: {scheduler_D.get_lr()}] [G lr: {scheduler_G.get_lr()}]")
             print(f"[LOSS]  |   total        |  real||fake  |   cls ")
             print(f"------------------------------------------------------")
-            print(f"D loss  |   {loss_D:2.6f}    |   {loss_D_wgan:2.6f}    |   {loss_D_cls:2.6f}")
-            print(f"G loss  |   {loss_G:2.6f}    |   {loss_G_wgan:2.6f}    |   {loss_G_cls:2.6f}")
+            print(f"D loss  |   {loss_D:2.6f}    |   {loss_D_rof:2.6f}    |   {loss_D_cls:2.6f}")
+            print(f"G loss  |   {loss_G:2.6f}    |   {loss_G_rof:2.6f}    |   {loss_G_cls:2.6f}")
             print(f"------------------------------------------------------")
             print(f"            |    real    |    fake    ")
             print(f"--------------------------------------")
@@ -186,7 +213,7 @@ def main():
             if i % (len(dataloader) // opts.logstep_per_epoch) == 0 and opts.logging:
                 logger.write('epoch',epoch, 'iter',i, 'loss_d',loss_D, 'loss_g', loss_G, 
                              'loss_d_cls', loss_D_cls, 'loss_g_cls', loss_G_cls, 
-                             'loss_d_wgan', loss_G_wgan, 'loss_g_wgan', loss_D_wgan,
+                             'loss_d_rof', loss_G_rof, 'loss_g_rof', loss_D_rof,
                              'acc_fake', acc_fake, 'acc_real', acc_real, 
                              'minprob_real', minprob_real, 'maxprob_real', maxprob_real,
                              'minprob_fake', minprob_fake, 'maxprob_fake', maxprob_fake)
@@ -203,7 +230,11 @@ def main():
             },
             f'{opts.filename}/pretrained/ppad_v2.pth')
 
-    logger.close()
+        scheduler_D.step()
+        scheduler_G.step()
+
+    if opts.logging:
+        logger.close()
 
 if __name__ == '__main__':
     main()

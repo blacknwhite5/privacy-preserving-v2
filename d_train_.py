@@ -27,7 +27,7 @@ parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--lr', type=int, default=1e-4)
 parser.add_argument('--b1', type=int, default=0.5)
 parser.add_argument('--b2', type=int, default=0.999)
-parser.add_argument('--lr_step', type=int, default=10)
+parser.add_argument('--lr_step', type=int, default=20)
 parser.add_argument('--lr_decay', type=float, default=0.95)
 parser.add_argument('--weight_decay', type=float, default=5e-4)
 parser.add_argument('--reuse', dest='reuse', action='store_true')
@@ -58,7 +58,7 @@ transforms = transforms.Compose([
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
 
 ### celeba 데이터셋
-celeba = celebA(path='../data/celebA_aligned/',
+celeba = celebA(path='../../myProject/GANs-pytorch/data/celeba/',
                 transforms=transforms)
 
 ### 데이터 로드
@@ -92,6 +92,8 @@ def main():
 #    scheduler = optim.lr_scheduler.StepLR(D_optim, step_size=opts.lr_step ,gamma=0.1)
 
     for epoch in range(opts.num_epoch):
+#        scheduler.step()
+
         for i, (img, cls, bbox, landm) in enumerate(dataloader):
             img = img.to(device)
             cls = cls.to(device)
@@ -103,7 +105,7 @@ def main():
 
             D_real_cls, D_real = D(cropped_img)
             D_cls_loss = celoss(D_real_cls, cls)
-            D_real_loss = mseloss(D_real, torch.ones_like(D_real))
+            D_real_loss = mseloss(D_real, torch.zeros_like(D_real))
             loss_D = D_cls_loss + D_real_loss 
 
             D_optim.zero_grad()

@@ -105,19 +105,20 @@ class CANLoss:
             D_real_cls, D_fake_cls, cls = args
             term0 = self.celoss(D_real_cls, cls)
             term1 = 0
-            term2 = torch.log(1-self.softmax(D_fake_cls))
+#            term2 = torch.log(1-self.softmax(D_fake_cls))
+            loss = term0
         elif len(args) == 1:
             D_fake_cls = args[0]
             term0 = 0
             term1 = (1/self.num_classes) * self.logsoftmax(D_fake_cls)
             term2 = (1-(1/self.num_classes)) * torch.log(1-self.softmax(D_fake_cls))
+            loss =  term0 - (term1 + term2).sum(dim=1).mean()
         else:
             raise Exception(f'inputs must be 1(real cls, fake cls, label) or 3, but got {len(args)}')
         
 #        term1 = (1/self.num_classes) * self.logsoftmax(D_fake_cls)
 ##        term2 = (1-(1/self.num_classes)) * self.logsoftmax(D_fake_cls)
 #        term2 = (1-(1/self.num_classes)) * torch.log(1-self.softmax(D_fake_cls))
-        loss =  term0 - (term1 + term2).sum(dim=1).mean()
         return loss
 
 #class CANLoss:

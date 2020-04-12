@@ -1,6 +1,7 @@
 from torchvision.utils import save_image
 from torch.utils.data import DataLoader
 from torchvision import transforms
+import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.nn as nn
 import torch
@@ -46,6 +47,7 @@ print(opts)
 
 # seed 고정
 torch.manual_seed(0)
+cudnn.benchmark = True
 
 # 저장공간생성
 os.makedirs(f'{opts.filename}/images', exist_ok=True)
@@ -115,7 +117,7 @@ def main():
 
 
     for epoch in range(opts.num_epoch):
-        for i, (img, cls, bbox, landm) in enumerate(dataloader):
+        for i, (img, cls, bbox, landm, imgname) in enumerate(dataloader):
             img = img.to(device)
             cls = cls.to(device)
             bbox = bbox.to(device)

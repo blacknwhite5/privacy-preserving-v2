@@ -48,8 +48,9 @@ def to_expand_bbox(bbox, landm, h, w, percentage=0.05):
     y1 = torch.stack([bbox[:,1], min_y]).t().min(1, keepdim=True)[0]
     x2 = torch.stack([bbox[:,2], max_x]).t().max(1, keepdim=True)[0]
     y2 = torch.stack([bbox[:,3], max_y]).t().max(1, keepdim=True)[0]
-    expanded_ = torch.cat([x1, y1, x2, y2], dim=1)+ (gap * (0.8+shrink_percentage)).to(bbox.dtype)
+#    expanded_ = torch.cat([x1, y1, x2, y2], dim=1)+ (gap * (0.5+shrink_percentage)).to(bbox.dtype)
 #    expanded_ = torch.cat([x1, y1, x2, y2], dim=1)+ (gap * 0.8).to(bbox.dtype)
+    expanded_ = torch.cat([x1, y1, x2, y2], dim=1)+ (gap * 0.5).to(bbox.dtype)
 
     expanded_[:,0] = torch.where(expanded_[:,0] > 0, expanded_[:,0], 0*torch.ones_like(expanded_[:,0]))
     expanded_[:,1] = torch.where(expanded_[:,1] > 0, expanded_[:,1], 0*torch.ones_like(expanded_[:,1]))

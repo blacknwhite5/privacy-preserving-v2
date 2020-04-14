@@ -63,7 +63,7 @@ class CASIA(Dataset):
 #        cls = torch.tensor(cls)
 #        box = torch.tensor(box)
 #        landm = torch.tensor(landm)
-        return img, cls, box, landm
+        return img, cls, box, landm, imgname
         
 
     def __len__(self):
@@ -152,11 +152,31 @@ if __name__ == '__main__':
                             transforms.Normalize([0.5], [0.5])])
     
     casia = CASIA('/home/moohyun/Desktop/egovid/PPAD/data/CASIA/', transforms=transform)
-    dataloader = DataLoader(casia, batch_size=16, shuffle=True)
-       
-    for i, (img, cls, bbox, landm) in enumerate(dataloader):
+    dataloader = DataLoader(casia, batch_size=16, shuffle=True, num_workers=4)
+
+    import time
+    start = time.time()
+    for i, (img, cls, bbox, landm, imgname) in enumerate(dataloader):
         print(i, img.shape, cls.shape, bbox.shape, landm.shape)
+
+#        img_ = img.clone()
+#        masked = to_apply_mask(img_, bbox)
+#
+#        # use expand bbox
+#        expanded_bbox = to_expand_bbox(bbox, landm, *img.shape[2:])
+#        cropped_masked, landm = to_crop_resize(masked, expanded_bbox, landm)
+#        cropped_img, _ = to_crop_resize(img, expanded_bbox, landm)
+#        cropped_masked = cropped_masked.to(img_.device)
+#        cropped_img = cropped_img.to(img_.device)
+#        onehot_landm = to_onehot(landm, *cropped_masked.shape[2:]).to(img_.device)
+#
+#        print(i, cropped_img.shape, onehot_landm.shape)
+#
+#        if i == 1000:
+#            break
         pass 
+
+    print(time.time()-start)
 
 #        # check pillow image
 #        draw = ImageDraw.Draw(img)

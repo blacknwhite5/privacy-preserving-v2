@@ -144,7 +144,6 @@ class ResNet(nn.Module):
                                             nn.Dropout(p),
                                             nn.Linear(512 * block.expansion, 512),
                                             nn.ReLU(inplace=True),
-                                            nn.Dropout(p),
                                             nn.Linear(512 * block.expansion, num_classes))
 
         self.discrimination = nn.Sequential(nn.Linear(512 * block.expansion, 512),
@@ -152,7 +151,6 @@ class ResNet(nn.Module):
                                             nn.Dropout(p),
                                             nn.Linear(512 * block.expansion, 512),
                                             nn.ReLU(inplace=True),
-                                            nn.Dropout(p),
                                             nn.Linear(512 * block.expansion, 1))
 
         for m in self.modules():

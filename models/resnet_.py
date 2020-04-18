@@ -174,11 +174,11 @@ class ResNetFace(nn.Module):
         self.dropout = nn.Dropout()
         self.fc5 = nn.Linear(512 * 8 * 8, 512)
         self.bn5 = nn.BatchNorm1d(512)
-        self.discrimination = nn.Sequential(nn.Linear(512 * 8 * 8, 512),
-                                            nn.ReLU(inplace=True),
-                                            nn.Linear(512, 512),
-                                            nn.ReLU(inplace=True),
-                                            nn.Linear(512, 1))
+#        self.discrimination = nn.Sequential(nn.Linear(512 * 8 * 8, 512),
+#                                            nn.ReLU(inplace=True),
+#                                            nn.Linear(512, 512),
+#                                            nn.ReLU(inplace=True),
+#                                            nn.Linear(512, 1))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -219,11 +219,11 @@ class ResNetFace(nn.Module):
         x = self.bn4(x)
         x = self.dropout(x)
         x = x.view(x.size(0), -1)
-        real_or_fake = self.discrimination(x)
+#        real_or_fake = self.discrimination(x)
         x = self.fc5(x)
         x = self.bn5(x)
 
-        return x, real_or_fake
+        return x
 
 
 class ResNet(nn.Module):
@@ -246,11 +246,11 @@ class ResNet(nn.Module):
         # self.fc = nn.Linear(512 * block.expansion, num_classes)
         self.fc5 = nn.Linear(512 * 8 * 8, 512)
 
-        self.discrimination = nn.Sequential(nn.Linear(512 * 8 * 8, 512),
-                                            nn.ReLU(inplace=True),
-                                            nn.Linear(512, 512),
-                                            nn.ReLU(inplace=True),
-                                            nn.Linear(512, 1))
+#        self.discrimination = nn.Sequential(nn.Linear(512 * 8 * 8, 512),
+#                                            nn.ReLU(inplace=True),
+#                                            nn.Linear(512, 512),
+#                                            nn.ReLU(inplace=True),
+#                                            nn.Linear(512, 1))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -288,10 +288,10 @@ class ResNet(nn.Module):
         # x = nn.AvgPool2d(kernel_size=x.size()[2:])(x)
         # x = self.avgpool(x)
         x = x.view(x.size(0), -1)
-        real_or_fake = self.discrimination(x)
+#        real_or_fake = self.discrimination(x)
         x = self.fc5(x)
 
-        return x, real_or_fake
+        return x
 
 
 def resnet18(pretrained=False, **kwargs):

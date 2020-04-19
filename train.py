@@ -77,7 +77,8 @@ elif opts.dataset == 'casia':
 ### 데이터 로드
 dataloader = DataLoader(face_data,
                         batch_size=opts.batch_size,
-                        shuffle=True)
+                        shuffle=True,
+                        num_workers=4)
 
 def main():
     # 네트워크
@@ -108,6 +109,8 @@ def main():
 #                          {'params': D.classification.parameters(), 'lr': opts.lr*10}],
 #                            lr=opts.lr, betas=(opts.b1, opts.b2))
     G_optim = optim.Adam(G.parameters(), lr=opts.lr, betas=(opts.b1, opts.b2))
+#    D_optim = optim.SGD(D.parameters(), lr=opts.lr, momentum=0.5)
+#    G_optim = optim.SGD(G.parameters(), lr=opts.lr, momentum=0.5)
 
     # scheduler
 #    scheduler_D = optim.lr_scheduler.ExponentialLR(D_optim, gamma=0.99)
@@ -117,23 +120,14 @@ def main():
 
 
     for epoch in range(opts.num_epoch):
-        for i, (img, cls, bbox, landm, imgname) in enumerate(dataloader):
+        for i, (img, masked, cropped_img, cropped_masked, cls, expanded_bbox, onehot_landm, imgname) in enumerate(dataloader):
             img = img.to(device)
+            masked = masked.to(device)
+            cropped_img = cropped_img.to(device)
+            cropped_masked = cropped_masked.to(device)
             cls = cls.to(device)
-            bbox = bbox.to(device)
-            landm = landm.to(device)
-
-            # preprocess
-            img_ = img.clone()
-            masked = to_apply_mask(img_, bbox) 
-
-            # use expand bbox
-            expanded_bbox = to_expand_bbox(bbox, landm, *img.shape[2:])
-            cropped_masked, landm = to_crop_resize(masked, expanded_bbox, landm)
-            cropped_img, _ = to_crop_resize(img, expanded_bbox, landm)
-            cropped_masked = cropped_masked.to(img_.device)
-            cropped_img = cropped_img.to(img_.device)
-            onehot_landm = to_onehot(landm, *cropped_masked.shape[2:]).to(img_.device)
+            expanded_bbox = expanded_bbox.to(device)
+            onehot_landm = onehot_landm.to(device)
 
 #            # verify landmark
 #            npimg = (cropped_masked[0].cpu().detach().numpy() + 1) * 127.5
@@ -157,7 +151,7 @@ def main():
                 D_real_cls, D_real = D(cropped_img, onehot_landm)
 
                 loss_D_rof = wganloss(cropped_img, fake, onehot_landm)
-                loss_D_cls = canloss(D_real_cls, D_fake_cls, cls)
+                loss_D_cls = 2.5 * canloss(D_real_cls, D_fake_cls, cls)
 #                loss_D_cls = canloss(D_fake_cls) + celoss(D_real_cls, cls)
 #                loss_D_cls = celoss(D_real_cls, cls)
                 loss_D = loss_D_rof + loss_D_cls 
@@ -174,7 +168,7 @@ def main():
             restore = to_restore_size(masked, fake, expanded_bbox)
 
             loss_G_rof = wganloss(fake, onehot_landm)
-            loss_G_cls = canloss(D_fake_cls)
+            loss_G_cls = 2.5 * canloss(D_fake_cls)
             loss_photorealistic = pixelwiseloss(img, restore)
             loss_G = loss_G_rof + loss_G_cls + loss_photorealistic
             

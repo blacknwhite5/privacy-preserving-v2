@@ -85,14 +85,6 @@ class WGAN_GPLoss:
         return gradient_penalty
 
 
-#class CANLoss:
-#    def __init__(self, num_classes):
-#        self.num_classes = num_classes
-#
-#    def __call__(self, D_fake_cls):
-#        return -((1/self.num_classes)*torch.ones(1, self.num_classes).to(D_fake_cls.device) \
-#                * torch.nn.LogSoftmax(dim=1)(D_fake_cls)).sum(dim=1).mean()
-
 class CANLoss:
     def __init__(self, num_classes):
         self.num_classes = num_classes
@@ -105,7 +97,6 @@ class CANLoss:
             D_real_cls, D_fake_cls, cls = args
             term0 = self.celoss(D_real_cls, cls)
             term1 = 0
-#            term2 = torch.log(1-self.softmax(D_fake_cls))
             loss = term0
         elif len(args) == 1:
             D_fake_cls = args[0]
@@ -115,29 +106,7 @@ class CANLoss:
             loss =  term0 - (term1 + term2).sum(dim=1).mean()
         else:
             raise Exception(f'inputs must be 1(real cls, fake cls, label) or 3, but got {len(args)}')
-        
-#        term1 = (1/self.num_classes) * self.logsoftmax(D_fake_cls)
-##        term2 = (1-(1/self.num_classes)) * self.logsoftmax(D_fake_cls)
-#        term2 = (1-(1/self.num_classes)) * torch.log(1-self.softmax(D_fake_cls))
         return loss
-
-#class CANLoss:
-#    def __init__(self, num_classes):
-#        self.num_classes = num_classes
-#        self.celoss = torch.nn.CrossEntropyLoss()
-#        self.logsoftmax = torch.nn.LogSoftmax(dim=1)
-#
-#    def __call__(self, *args):
-#        if len(args) == 3:
-#            D_real_cls, D_fake_cls, cls = args
-#            loss = self.celoss(D_real_cls, cls)
-#        elif len(args) == 1:
-#            D_fake_cls = args[0]
-#            loss =  -((1/self.num_classes) * self.logsoftmax(D_fake_cls)).sum(dim=1).mean()
-#        else:
-#            raise Exception(f'inputs must be 1(real cls, fake cls, label) or 3, but got {len(args)}')
-#        return loss
-
 
 class PixelwiseLoss:
     def __init__(self, lambda_photo=100):
@@ -181,7 +150,3 @@ if __name__ == '__main__':
     num_cls = 10
     crit5 = CANLoss(num_cls)
     print(crit5(torch.randn(6, num_cls)))
-
-#    crit6 = CANLoss2(num_cls)
-#    print(crit6(torch.randn(6, num_cls)))
-#    print(crit6(torch.randn(6, num_cls), torch.randn(6, num_cls), 3*torch.ones(6).to(torch.int64)))
